@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Alessio Armentano - Fiat Tipo Rossa</title>
+<style>
+:root{
+  --bg1:#87b4dd;
+  --bg2:#6e9dcb;
+  --grass:#5e8742;
+  --road:#3f4349;
+  --road2:#555a63;
+  --line:#fff6b3;
+  --car:#cf2028;
+  --carDark:#8f0f18;
+  --glass:#b8d9ef;
+  --ui:#10151d;
+  --ui2:#18212d;
+  --text:#eef2f7;
+  --muted:#97a6b8;
+  --good:#39d98a;
+  --warn:#ffb020;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#0a0d12;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text)}
+.app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;gap:8px;background:linear-gradient(180deg,#0d131c,#090c11)}
+.topbar,.hud,.controls,.game-shell{width:min(100%,500px)}
+.topbar{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#17202b,#121923);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:10px 14px;box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.title{font-size:18px;font-weight:900;letter-spacing:.2px}
+.subtitle{font-size:12px;color:var(--muted)}
+.badge{font-size:11px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);white-space:nowrap}
+.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.card{background:linear-gradient(180deg,#16202b,#111821);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:8px 10px;box-shadow:0 10px 25px rgba(0,0,0,.24)}
+.label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.value{font-size:18px;font-weight:900;margin-top:4px}
+.game-shell{position:relative;aspect-ratio:9/16;border-radius:24px;overflow:hidden;border:1px solid rgba(255,255,255,.09);box-shadow:0 30px 70px rgba(0,0,0,.45)}
+canvas{display:block;width:100%;height:100%;background:linear-gradient(180deg,var(--bg1),var(--bg2) 28%,var(--grass) 28%,var(--grass) 35%,var(--road) 35%,var(--road) 100%)}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:linear-gradient(180deg,rgba(6,10,16,.25),rgba(6,10,16,.84))}
+.hidden{display:none}
+.panel{width:100%;max-width:390px;background:linear-gradient(180deg,rgba(21,29,38,.97),rgba(11,15,20,.98));border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:18px;box-shadow:0 24px 50px rgba(0,0,0,.35);text-align:center}
+.panel h1{margin:0 0 10px;font-size:29px;line-height:1.04}
+.panel p{font-size:14px;line-height:1.45;color:#d7e0eb;margin:9px 0}
+.panel strong{color:#ff5f66}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.btn{border:0;border-radius:16px;padding:14px 18px;font-size:16px;font-weight:900;color:white;background:linear-gradient(180deg,#ff5f66,#d91d27);box-shadow:0 12px 26px rgba(217,29,39,.32);min-width:150px}
+.btn.secondary{background:linear-gradient(180deg,#2b3642,#1a232f);box-shadow:none}
+.legend{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;text-align:left}
+.legend div{font-size:12px;color:#d6dfeb;background:rgba(255,255,255,.04);padding:8px 10px;border-radius:12px}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;touch-action:manipulation}
+.touch{border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,#1a2330,#131a24);color:#fff;border-radius:18px;padding:16px 10px;font-size:18px;font-weight:900;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.touch.big{font-size:16px}
+.touch:active{transform:scale(.98)}
+.note{font-size:12px;color:var(--muted);text-align:center}
+@media (max-height:760px){
+  .hud{gap:6px}.value{font-size:16px}.touch{padding:14px 8px}.panel h1{font-size:25px}.panel p{font-size:13px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="title">Alessio Armentano</div>
+      <div class="subtitle">Fiat Tipo rossa — mobile build</div>
+    </div>
+    <div class="badge">touch + suoni</div>
+  </div>
+
+  <div class="hud">
+    <div class="card"><div class="label">Metri</div><div class="value" id="meters">0</div></div>
+    <div class="card"><div class="label">Scocca</div><div class="value" id="hp">100%</div></div>
+    <div class="card"><div class="label">Boost</div><div class="value" id="boostName">—</div></div>
+    <div class="card"><div class="label">Record</div><div class="value" id="best">0</div></div>
+  </div>
+
+  <div class="game-shell">
+    <canvas id="game" width="720" height="1280"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <div class="panel">
+        <h1>Guida la <strong>Fiat Tipo rossa</strong> e tienila intera</h1>
+        <p>Schiva <strong>buche</strong>, <strong>pezzi di mattone</strong> e <strong>altre macchine</strong>. Prendi i boost richiesti per fare più metri e assorbire meglio gli impatti.</p>
+        <div class="legend">
+          <div>🚬 Svapo rossa = turbo breve</div>
+          <div>🕶️ Occhiali a goccia = scudo</div>
+          <div>🎮 FC26 = punti extra</div>
+          <div>🕹️ PS5 = magnete pickup</div>
+        </div>
+        <div class="btns">
+          <button class="btn" id="startBtn">Gioca</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="gameOverOverlay">
+      <div class="panel">
+        <h1>Game over</h1>
+        <p id="finalText">Hai fatto 0 metri.</p>
+        <div class="btns">
+          <button class="btn" id="restartBtn">Riprova</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="touch" id="leftBtn">◀</button>
+    <button class="touch big" id="actionBtn">BOOST</button>
+    <button class="touch" id="rightBtn">▶</button>
+  </div>
+  <div class="note">Tocca sinistra/destra per cambiare corsia. BOOST attiva il turbo manuale quando carico.</div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const road = {x: W*0.16, w: W*0.68};
+  const lanes = [road.x + road.w*0.18, road.x + road.w*0.5, road.x + road.w*0.82];
+
+  const ui = {
+    meters: document.getElementById('meters'), hp: document.getElementById('hp'), boostName: document.getElementById('boostName'), best: document.getElementById('best'),
+    startOverlay: document.getElementById('startOverlay'), gameOverOverlay: document.getElementById('gameOverOverlay'), finalText: document.getElementById('finalText'),
+    startBtn: document.getElementById('startBtn'), restartBtn: document.getElementById('restartBtn'), leftBtn: document.getElementById('leftBtn'), rightBtn: document.getElementById('rightBtn'), actionBtn: document.getElementById('actionBtn')
+  };
+
+  const saveKey = 'tipo_mobile_fx_best_v1';
+  let best = Number(localStorage.getItem(saveKey) || 0);
+  ui.best.textContent = best;
+
+  let audioCtx = null;
+  const soundEnabled = { value: false };
+  function initAudio(){
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      soundEnabled.value = true;
+    } catch(e) { soundEnabled.value = false; }
+  }
+  function beep(freq=440, dur=0.08, type='square', gain=0.03, slide=1){
+    if (!audioCtx || !soundEnabled.value) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(50, freq*slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  }
+  function soundCollision(){ beep(120,0.09,'sawtooth',0.045,0.7); setTimeout(()=>beep(70,0.12,'square',0.035,0.8),40); }
+  function soundPickup(){ beep(520,0.06,'triangle',0.03,1.15); setTimeout(()=>beep(760,0.07,'triangle',0.025,1.12),45); }
+  function soundBoost(){ beep(240,0.06,'square',0.03,1.5); setTimeout(()=>beep(360,0.07,'square',0.03,1.35),40); setTimeout(()=>beep(500,0.08,'square',0.025,1.2),80); }
+
+  const state = {
+    running:false, last:0, meters:0, speed:560, roadOffset:0, spawn:0, pickupSpawn:0, msg:'', msgT:0, shake:0,
+    obstacles:[], pickups:[], particles:[], streaks:[],
+    player:{ lane:1, x:lanes[1], y:H*0.84, w:136, h:230, hp:100, inv:0, turboEnergy:0, bounce:0, tilt:0 },
+    fx:{ vape:0, glasses:0, fc26:0, ps5:0 },
+  };
+
+  function reset(){
+    state.running = true; state.last = 0; state.meters = 0; state.speed = 560; state.roadOffset = 0; state.spawn = 0.7; state.pickupSpawn = 1.2; state.msg=''; state.msgT=0; state.shake=0;
+    state.obstacles.length = 0; state.pickups.length = 0; state.particles.length = 0; state.streaks.length = 0;
+    state.player = { lane:1, x:lanes[1], y:H*0.84, w:136, h:230, hp:100, inv:0, turboEnergy:0, bounce:0, tilt:0 };
+    state.fx = { vape:0, glasses:0, fc26:0, ps5:0 };
+    ui.meters.textContent = '0'; ui.hp.textContent = '100%'; ui.boostName.textContent = '—';
+    ui.startOverlay.classList.add('hidden'); ui.gameOverOverlay.classList.add('hidden');
+    requestAnimationFrame(loop);
+  }
+
+  function setMsg(s, t=0.9){ state.msg = s; state.msgT = t; }
+  function move(dir){ if(!state.running) return; state.player.lane = Math.max(0, Math.min(2, state.player.lane + dir)); }
+  function activateManualBoost(){
+    if (!state.running || state.player.turboEnergy < 100) return;
+    state.player.turboEnergy = 0;
+    state.fx.vape = Math.max(state.fx.vape, 2.6);
+    state.player.inv = Math.max(state.player.inv, 0.35);
+    setMsg('Turbo manuale',0.8); soundBoost();
+  }
+
+  function spawnObstacle(){
+    const lane = Math.floor(Math.random()*3);
+    const r = Math.random();
+    if(r < 0.34){
+      state.obstacles.push({type:'pothole', lane, x:lanes[lane], y:-90, w:136, h:66, speed:state.speed + 10 + Math.random()*40, dead:false});
+    } else if(r < 0.67){
+      state.obstacles.push({type:'brick', lane, x:lanes[lane], y:-80, w:86, h:74, speed:state.speed + 30 + Math.random()*50, dead:false, rot:Math.random()*0.5});
+    } else {
+      const palette = ['#f59e0b','#7c3aed','#2563eb','#22c55e','#e11d48'];
+      state.obstacles.push({type:'car', lane, x:lanes[lane], y:-230, w:126, h:208, speed:state.speed + 20 + Math.random()*60, dead:false, color:palette[(Math.random()*palette.length)|0]});
+    }
+  }
+  function spawnPickup(){
+    const types = ['vape','glasses','fc26','ps5'];
+    const lane = Math.floor(Math.random()*3);
+    const type = types[(Math.random()*types.length)|0];
+    state.pickups.push({type, lane, x:lanes[lane], y:-90, w:82, h:82, speed:state.speed*0.92});
+  }
+
+  function hit(a,b){ return Math.abs(a.x-b.x)*2 < (a.w+b.w)*0.8 && Math.abs(a.y-b.y)*2 < (a.h+b.h)*0.82; }
+
+  function addParticle(x,y,vx,vy,size,life,color){ state.particles.push({x,y,vx,vy,size,life,max:life,color}); }
+  function burstCollision(x,y,kind){
+    const n = kind==='car' ? 18 : 12;
+    for(let i=0;i<n;i++){
+      const ang = Math.random()*Math.PI*2;
+      const sp = 90 + Math.random()*220;
+      addParticle(x,y,Math.cos(ang)*sp,Math.sin(ang)*sp,4+Math.random()*12,0.35+Math.random()*0.45, i%3===0 ? '#ffc857' : i%3===1 ? '#e6edf7' : '#ff7b72');
+    }
+  }
+
+  function damage(amount, obj){
+    if(state.player.inv > 0) return;
+    if(state.fx.glasses > 0) amount *= 0.45;
+    state.player.hp = Math.max(0, state.player.hp - amount);
+    state.player.inv = 0.45;
+    state.player.bounce = 22;
+    state.player.tilt = (Math.random() > .5 ? 1 : -1) * 0.12;
+    state.shake = Math.max(state.shake, obj.type === 'car' ? 18 : 12);
+    burstCollision(state.player.x, state.player.y + 25, obj.type);
+    soundCollision();
+    setMsg(obj.type==='car' ? 'Botta con un\'altra macchina' : obj.type==='brick' ? 'Hai preso un mattone' : 'Hai centrato una buca', 0.9);
+    if(state.player.hp <= 0) endGame();
+  }
+
+  function applyPickup(type){
+    soundPickup();
+    if(type==='vape'){
+      state.fx.vape = Math.max(state.fx.vape, 2.2);
+      state.player.turboEnergy = Math.min(100, state.player.turboEnergy + 35);
+      setMsg('Svapo rossa: turbo', 0.8);
+    } else if(type==='glasses'){
+      state.fx.glasses = Math.max(state.fx.glasses, 4.2);
+      setMsg('Occhiali: scudo', 0.8);
+    } else if(type==='fc26'){
+      state.fx.fc26 = Math.max(state.fx.fc26, 4.5);
+      state.meters += 120;
+      setMsg('FC26: bonus metri', 0.8);
+    } else if(type==='ps5'){
+      state.fx.ps5 = Math.max(state.fx.ps5, 5.2);
+      setMsg('PS5: magnete pickup', 0.8);
+    }
+  }
+
+  function endGame(){
+    state.running = false;
+    const m = Math.floor(state.meters);
+    if(m > best){ best = m; localStorage.setItem(saveKey, String(best)); ui.best.textContent = String(best); }
+    ui.finalText.textContent = `Hai fatto ${m} metri.`;
+    ui.gameOverOverlay.classList.remove('hidden');
+  }
+
+  function currentBoostText(){
+    if(state.fx.vape>0) return 'Vape';
+    if(state.fx.glasses>0) return 'Scudo';
+    if(state.fx.fc26>0) return 'FC26';
+    if(state.fx.ps5>0) return 'Magnete';
+    return state.player.turboEnergy >= 100 ? 'Pronto' : Math.floor(state.player.turboEnergy) + '%';
+  }
+
+  function update(dt){
+    const p = state.player;
+    state.speed += dt * 3.5;
+    const extra = state.fx.vape > 0 ? 180 : 0;
+    state.meters += (state.speed + extra) * dt * 0.11 + (state.fx.fc26>0 ? dt*16 : 0);
+    state.roadOffset += (state.speed + extra) * dt;
+    state.spawn -= dt; state.pickupSpawn -= dt;
+    state.msgT = Math.max(0, state.msgT - dt);
+    state.shake = Math.max(0, state.shake - dt*28);
+    p.inv = Math.max(0, p.inv - dt);
+    p.bounce += (0 - p.bounce) * Math.min(1, dt*10);
+    p.tilt += (0 - p.tilt) * Math.min(1, dt*8);
+    p.x += (lanes[p.lane] - p.x) * Math.min(1, dt*9);
+    p.turboEnergy = Math.min(100, p.turboEnergy + dt * 10);
+
+    for (const k of ['vape','glasses','fc26','ps5']) state.fx[k] = Math.max(0, state.fx[k] - dt);
+
+    if(state.spawn <= 0){ spawnObstacle(); state.spawn = Math.max(0.34, 0.92 - state.meters/2400); }
+    if(state.pickupSpawn <= 0){ spawnPickup(); state.pickupSpawn = 2.0 + Math.random()*1.5; }
+
+    const magnet = state.fx.ps5 > 0;
+    for(let i=state.obstacles.length-1;i>=0;i--){
+      const o = state.obstacles[i];
+      o.y += (o.speed + extra) * dt;
+      if(hit({x:p.x,y:p.y-p.bounce,w:p.w,h:p.h}, o)){
+        damage(o.type==='car' ? 28 : o.type==='brick' ? 18 : 14, o);
+        state.obstacles.splice(i,1);
+        continue;
+      }
+      if(o.y - o.h/2 > H + 30) state.obstacles.splice(i,1);
+    }
+
+    for(let i=state.pickups.length-1;i>=0;i--){
+      const it = state.pickups[i];
+      it.y += (it.speed + extra) * dt;
+      if(magnet){ it.x += (p.x - it.x) * Math.min(1, dt*3.6); }
+      if(hit({x:p.x,y:p.y-p.bounce,w:p.w,h:p.h}, it)){
+        applyPickup(it.type);
+        state.pickups.splice(i,1);
+        continue;
+      }
+      if(it.y - it.h/2 > H + 40) state.pickups.splice(i,1);
+    }
+
+    for(let i=state.particles.length-1;i>=0;i--){
+      const q = state.particles[i];
+      q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 340*dt; q.life -= dt;
+      if(q.life <= 0) state.particles.splice(i,1);
+    }
+
+    ui.meters.textContent = String(Math.floor(state.meters));
+    ui.hp.textContent = Math.floor(p.hp) + '%';
+    ui.boostName.textContent = currentBoostText();
+  }
+
+  function roundedRect(x,y,w,h,r,fill,stroke){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+    if(fill) ctx.fill(); if(stroke) ctx.stroke();
+  }
+
+  function drawRoad(){
+    ctx.fillStyle = '#6f9dca'; ctx.fillRect(0,0,W,H*0.28);
+    ctx.fillStyle = '#7fb0dd';
+    for(let i=0;i<5;i++){ ctx.beginPath(); ctx.arc(80+i*160, 95 + (i%2)*20, 34+i*5, 0, Math.PI*2); ctx.fill(); }
+    ctx.fillStyle = '#638b47'; ctx.fillRect(0,H*0.28,W,H*0.08);
+    ctx.fillStyle = '#4b6d35'; ctx.fillRect(0,H*0.33,W,H*0.03);
+    ctx.fillStyle = '#40444a'; ctx.fillRect(road.x, H*0.35, road.w, H*0.65);
+    ctx.fillStyle = '#555a63'; ctx.fillRect(road.x+12, H*0.35, 10, H*0.65);
+    ctx.fillRect(road.x+road.w-22, H*0.35, 10, H*0.65);
+
+    const dashH = 90, gap = 55, y0 = - (state.roadOffset % (dashH+gap));
+    for(let lane=1; lane<=2; lane++){
+      const x = road.x + road.w * lane/3 - 7;
+      for(let y = y0; y < H+100; y += dashH + gap){
+        ctx.fillStyle = '#fff0a6'; ctx.fillRect(x, y + H*0.35, 14, dashH);
+      }
+    }
+  }
+
+  function drawPlayer(){
+    const p = state.player;
+    ctx.save();
+    ctx.translate(p.x, p.y - p.bounce);
+    ctx.rotate(p.tilt);
+    ctx.globalAlpha = p.inv > 0 && Math.floor(p.inv*20)%2===0 ? 0.5 : 1;
+    if(state.fx.vape>0){
+      for(let i=0;i<6;i++) addParticle(p.x + (Math.random()-0.5)*20, p.y + 95, (Math.random()-0.5)*40, 80+Math.random()*70, 4+Math.random()*6, 0.22, 'rgba(255,120,80,.85)');
+      ctx.fillStyle = 'rgba(255,164,84,.24)'; roundedRect(-82,-120,164,260,30,true,false);
+    }
+    ctx.fillStyle = '#00000022'; ctx.beginPath(); ctx.ellipse(0,104,74,18,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#cf2028';
+    roundedRect(-62,-98,124,190,28,true,false);
+    ctx.fillStyle = '#e33a42'; roundedRect(-56,-92,112,44,20,true,false);
+    ctx.fillStyle = '#b8d9ef'; roundedRect(-44,-48,88,40,14,true,false);
+    ctx.fillStyle = '#9bc5e0'; roundedRect(-50,-6,100,48,14,true,false);
+    ctx.fillStyle = '#20242c'; ctx.fillRect(-57,50,114,26);
+    ctx.fillStyle = '#dce6ef'; roundedRect(-22,68,44,14,6,true,false);
+    ctx.fillStyle = '#111'; ctx.fillRect(-18,71,36,8);
+    ctx.fillStyle = '#f4f6f8'; ctx.fillRect(-10,71,20,8);
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(-40,84,16,0,Math.PI*2); ctx.arc(40,84,16,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#656f7b';
+    ctx.beginPath(); ctx.arc(-40,84,8,0,Math.PI*2); ctx.arc(40,84,8,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d72a33'; ctx.fillRect(-59,-26,8,46); ctx.fillRect(51,-26,8,46);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-45,-78,20,9); ctx.fillRect(25,-78,20,9);
+    ctx.fillStyle = '#ffd9d9'; ctx.fillRect(-44,34,18,8); ctx.fillRect(26,34,18,8);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px system-ui'; ctx.textAlign = 'center'; ctx.fillText('TIPO', 0, 80);
+    if(state.fx.glasses>0){ ctx.strokeStyle = 'rgba(120,220,255,.9)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0,0,86,0,Math.PI*2); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function drawObstacle(o){
+    ctx.save(); ctx.translate(o.x,o.y);
+    if(o.type==='pothole'){
+      ctx.fillStyle = '#191b1f'; ctx.beginPath(); ctx.ellipse(0,0,68,28,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#6d717a'; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = '#090a0c'; ctx.beginPath(); ctx.ellipse(0,2,48,18,0,0,Math.PI*2); ctx.fill();
+    } else if(o.type==='brick'){
+      ctx.rotate(o.rot);
+      ctx.fillStyle = '#a24d29'; roundedRect(-32,-25,64,50,6,true,false);
+      ctx.fillStyle = '#bf6944'; ctx.fillRect(-26,-19,52,14); ctx.fillRect(-26,1,52,14);
+      ctx.strokeStyle = '#7a3720'; ctx.lineWidth = 3; ctx.strokeRect(-32,-25,64,50);
+      ctx.beginPath(); ctx.moveTo(0,-25); ctx.lineTo(0,25); ctx.moveTo(-10,1); ctx.lineTo(10,1); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#00000026'; ctx.beginPath(); ctx.ellipse(0,102,70,17,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = o.color; roundedRect(-58,-94,116,184,26,true,false);
+      ctx.fillStyle = '#dbe8f0'; roundedRect(-41,-42,82,38,12,true,false);
+      ctx.fillStyle = '#20242c'; ctx.fillRect(-52,48,104,24);
+      ctx.fillStyle = '#fff'; ctx.fillRect(-42,-74,18,8); ctx.fillRect(24,-74,18,8);
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(-36,82,15,0,Math.PI*2); ctx.arc(36,82,15,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawPickup(it){
+    ctx.save(); ctx.translate(it.x,it.y);
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0,36,34,10,0,0,Math.PI*2); ctx.fill();
+    if(it.type==='vape'){
+      ctx.fillStyle = '#cc1f2b'; roundedRect(-18,-30,36,72,12,true,false); ctx.fillStyle='#161b22'; ctx.fillRect(-7,-14,14,34); ctx.fillStyle='#f0f3f7'; ctx.fillRect(-5,-30,10,10);
+    } else if(it.type==='glasses'){
+      ctx.strokeStyle='#d9c38e'; ctx.lineWidth=7; ctx.beginPath(); ctx.arc(-18,0,18,0,Math.PI*2); ctx.arc(18,0,18,0,Math.PI*2); ctx.moveTo(0,0); ctx.lineTo(-3,0); ctx.moveTo(36,-2); ctx.lineTo(53,-12); ctx.moveTo(-36,-2); ctx.lineTo(-53,-12); ctx.stroke();
+      ctx.fillStyle='rgba(120,160,190,.35)'; ctx.beginPath(); ctx.arc(-18,0,14,0,Math.PI*2); ctx.arc(18,0,14,0,Math.PI*2); ctx.fill();
+    } else if(it.type==='fc26'){
+      ctx.fillStyle='#2a9d59'; roundedRect(-28,-38,56,76,12,true,false); ctx.fillStyle='#12161c'; ctx.fillRect(-24,-32,48,64); ctx.fillStyle='#e9f1f8'; ctx.font='bold 22px system-ui'; ctx.textAlign='center'; ctx.fillText('FC',0,-2); ctx.fillText('26',0,22);
+    } else {
+      ctx.fillStyle='#f5f6f9'; roundedRect(-36,-24,72,48,12,true,false); ctx.fillStyle='#111'; ctx.fillRect(-22,-12,44,24); ctx.fillStyle='#fff'; ctx.font='bold 18px system-ui'; ctx.textAlign='center'; ctx.fillText('PS5',0,6);
+    }
+    ctx.restore();
+  }
+
+  function drawParticles(){
+    for(const q of state.particles){
+      ctx.globalAlpha = Math.max(0, q.life/q.max);
+      ctx.fillStyle = q.color;
+      ctx.fillRect(q.x-q.size/2, q.y-q.size/2, q.size, q.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHUDinCanvas(){
+    if(state.msgT > 0){
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, state.msgT*2);
+      ctx.fillStyle = 'rgba(10,14,19,.62)';
+      roundedRect(W/2-150, 26, 300, 46, 16, true, false);
+      ctx.fillStyle = '#eef3f8'; ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center'; ctx.fillText(state.msg, W/2, 56);
+      ctx.restore();
+    }
+    const e = state.player.turboEnergy / 100;
+    ctx.fillStyle = 'rgba(10,14,19,.72)'; roundedRect(22, H-42, 220, 16, 8, true, false);
+    ctx.fillStyle = '#ff5f66'; roundedRect(24, H-40, 216*e, 12, 6, true, false);
+    ctx.fillStyle = '#eef3f8'; ctx.font = 'bold 16px system-ui'; ctx.textAlign='left'; ctx.fillText('Turbo', 22, H-50);
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    const sx = state.shake ? (Math.random()-0.5)*state.shake : 0;
+    const sy = state.shake ? (Math.random()-0.5)*state.shake : 0;
+    ctx.save(); ctx.translate(sx, sy);
+    drawRoad();
+    for(const it of state.pickups) drawPickup(it);
+    for(const o of state.obstacles) drawObstacle(o);
+    drawPlayer();
+    drawParticles();
+    drawHUDinCanvas();
+    ctx.restore();
+  }
+
+  function loop(ts){
+    if(!state.running) return;
+    if(!state.last) state.last = ts;
+    const dt = Math.min(0.033, (ts - state.last)/1000);
+    state.last = ts;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function bindPress(el, fn){
+    const go = (e)=>{ e.preventDefault(); initAudio(); if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); fn(); };
+    el.addEventListener('touchstart', go, {passive:false});
+    el.addEventListener('mousedown', go);
+  }
+
+  bindPress(ui.leftBtn, ()=>move(-1));
+  bindPress(ui.rightBtn, ()=>move(1));
+  bindPress(ui.actionBtn, activateManualBoost);
+  bindPress(ui.startBtn, reset);
+  bindPress(ui.restartBtn, reset);
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='ArrowLeft' || e.key==='a') move(-1);
+    else if(e.key==='ArrowRight' || e.key==='d') move(1);
+    else if(e.key===' ' || e.key==='ArrowUp') activateManualBoost();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
